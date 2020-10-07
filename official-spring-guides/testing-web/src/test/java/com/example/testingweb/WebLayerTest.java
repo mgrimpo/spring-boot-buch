@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
 import static org.hamcrest.Matchers.containsString;
 
-@WebMvcTest
+@WebMvcTest(HomeController.class)
 public class WebLayerTest {
 
   @Autowired
