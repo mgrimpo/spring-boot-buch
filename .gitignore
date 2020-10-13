@@ -7,6 +7,11 @@
 # Ignore Gradle build output directory
 build
 
+# --- Node & npm ---
+node/
+node_modules/
+**/src/main/resources/static/built/
+
 # --- Java ---
 
 # Compiled class file
