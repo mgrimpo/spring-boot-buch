@@ -18,7 +18,7 @@ class App extends React.Component {
     super(props);
     this.state = {
       employees: [],
-      page: 1,
+      page: {number: 0},
       pageSize: 2,
       attributes: [],
       links: []
@@ -58,29 +58,30 @@ class App extends React.Component {
   }
 
   refreshCurrentPage(message) {
-    follow(client, API_ROOT, {
+    console.log(this.state)
+    follow(client, API_ROOT, [{
       rel: 'employees', params: {
         page: this.state.page.number,
         size: this.state.pageSize
       }
-    }).then(
+    }]).then(
         employeeCollection => {
           this.links = employeeCollection.entity._links;
           this.page = employeeCollection.entity.page;
-
-          return employeeCollection.map(
+          console.log(employeeCollection);
+          return employeeCollection.entity._embedded.employees.map(
               employee => client(
                   {method: 'GET', path: employee._links.self.href})
           )
         }
     ).then(employeePromises => {
-      when.all(employeePromises)
+      return when.all(employeePromises)
     }).then(employees => {
           this.setState({
-            page : this.page,
+            page: this.page,
             links: this.links,
-            employees : employees,
-            attributes : Object.keys(this.schema.properties)
+            employees: employees,
+            attributes: Object.keys(this.schema.properties)
           })
         }
     )
@@ -128,16 +129,7 @@ class App extends React.Component {
         entity: newEmployee,
         headers: {'Content-Type': 'application/json'}
       })
-    }).then(response => {
-      return follow(client, API_ROOT, [
-        {rel: 'employees', params: {'size': this.state.pageSize}}]);
-    }).done(response => {
-      if (typeof response.entity._links.last !== "undefined") {
-        this.onNavigate(response.entity._links.last.href);
-      } else {
-        this.onNavigate(response.entity._links.self.href);
-      }
-    });
+    })
   }
 
   onNavigate(navUri) {
@@ -146,6 +138,7 @@ class App extends React.Component {
       path: navUri
     }).then(employeeCollection => {
       this.links = employeeCollection.entity._links;
+      this.page = employeeCollection.entity.page;
 
       return employeeCollection.entity._embedded.employees.map(employee =>
           client({
@@ -159,6 +152,7 @@ class App extends React.Component {
       this.setState({
         employees: employees,
         attributes: Object.keys(this.schema.properties),
+        page: this.page,
         pageSize: this.state.pageSize,
         links: this.links
       });
@@ -166,9 +160,7 @@ class App extends React.Component {
   }
 
   onDelete(employee) {
-    client({method: "DELETE", path: employee.entity._links.self.href}).done(
-        response => this.loadFromServer(this.state.pageSize)
-    )
+    client({method: "DELETE", path: employee.entity._links.self.href})
   }
 
   onUpdate(employee, updatedEmployee) {
@@ -181,9 +173,6 @@ class App extends React.Component {
         'If-Match': employee.headers.Etag
       }
     }).done(
-        response => {
-          this.loadFromServer(this.state.pageSize)
-        },
         response => {
           if (response.status.code === 412) {
             alert(
