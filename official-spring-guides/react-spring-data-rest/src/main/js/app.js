@@ -23,6 +23,7 @@ class App extends React.Component {
     this.onCreate = this.onCreate.bind(this);
     this.onNavigate = this.onNavigate.bind(this);
     this.onDelete = this.onDelete.bind(this);
+    this.updatePageSize = this.updatePageSize.bind(this);
   }
 
   componentDidMount() {
@@ -37,8 +38,11 @@ class App extends React.Component {
                         onCreate={this.onCreate}/>
           <EmployeeList employees={this.state.employees}
                         links={this.state.links}
+                        pageSize={this.state.pageSize}
                         onNavigate={this.onNavigate}
-                        onDelete={this.onDelete}/>
+                        onDelete={this.onDelete}
+                        updatePageSize={this.updatePageSize}
+          />
         </Container>);
   }
 
@@ -100,6 +104,12 @@ class App extends React.Component {
     client({method:"DELETE", path: employee._links.self.href}).done(
         response => this.loadFromServer(this.state.pageSize)
     )
+  }
+
+  updatePageSize(pageSize) {
+    if (pageSize !== this.state.pageSize){
+      this.loadFromServer(pageSize);
+    }
   }
 
 }
@@ -194,7 +204,20 @@ class CreateDialog extends React.Component {
 class EmployeeList extends React.Component {
   constructor(props) {
     super(props);
+    this.pageSizeRef = React.createRef();
+    this.handlePageSizeChange = this.handlePageSizeChange.bind(this);
   }
+  handlePageSizeChange(e){
+    e.preventDefault();
+    const pageSize = this.pageSizeRef.current.value.trim();
+    if( /^[0-9]$/.test(pageSize)){
+      this.props.updatePageSize(pageSize);
+    }
+    else {
+      this.pageSizeRef.current.value = pageSize.substring(0, pageSize.length -1);
+    }
+  }
+
 
   render() {
     const employeeComponents = this.props.employees.map(
@@ -222,6 +245,10 @@ class EmployeeList extends React.Component {
     return (
         <div className="mt-4">
           <h4>List of employees</h4>
+          <form >
+            <label htmlFor="pageSize" className="mr-2">Page Size: </label>
+            <input name="pageSize" defaultValue={this.props.pageSize} type="text" ref={this.pageSizeRef} onInput={this.handlePageSizeChange}/>
+          </form>
           <table className="table my-2">
             <tbody>
             <tr>
