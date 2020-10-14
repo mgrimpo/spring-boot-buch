@@ -1,9 +1,11 @@
 package com.example.reactspringdatarest;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Objects;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.Version;
 
 @Entity
 public class Employee {
@@ -15,6 +17,9 @@ public class Employee {
   private String lastName;
   private String description;
 
+
+  private @Version @JsonIgnore Long version;
+
   public Employee(String firstName, String lastName, String description) {
     this.firstName = firstName;
     this.lastName = lastName;
@@ -22,6 +27,14 @@ public class Employee {
   }
 
   public Employee() { }
+
+  public Long getVersion() {
+    return version;
+  }
+
+  public void setVersion(Long version) {
+    this.version = version;
+  }
 
   public Long getId() {
     return id;
@@ -62,6 +75,7 @@ public class Employee {
         ", firstName='" + firstName + '\'' +
         ", lastName='" + lastName + '\'' +
         ", description='" + description + '\'' +
+        ", version" + version + '\'' +
         '}';
   }
 
@@ -77,11 +91,12 @@ public class Employee {
     return Objects.equals(getId(), employee.getId()) &&
         Objects.equals(getFirstName(), employee.getFirstName()) &&
         Objects.equals(getLastName(), employee.getLastName()) &&
-        Objects.equals(getDescription(), employee.getDescription());
+        Objects.equals(getDescription(), employee.getDescription()) &&
+        Objects.equals(getVersion(), employee.getVersion());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getId(), getFirstName(), getLastName(), getDescription());
+    return Objects.hash(getId(), getFirstName(), getLastName(), getDescription(), getVersion());
   }
 }

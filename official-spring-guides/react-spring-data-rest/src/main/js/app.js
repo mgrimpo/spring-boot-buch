@@ -7,6 +7,7 @@ const follow = require('./follow')
 const {Modal} = require('react-bootstrap')
 const {Button} = require('react-bootstrap')
 const {Container} = require('react-bootstrap')
+const when = require('when')
 
 const API_ROOT = "/api";
 
@@ -24,26 +25,11 @@ class App extends React.Component {
     this.onNavigate = this.onNavigate.bind(this);
     this.onDelete = this.onDelete.bind(this);
     this.updatePageSize = this.updatePageSize.bind(this);
+    this.onUpdate = this.onUpdate.bind(this);
   }
 
   componentDidMount() {
     this.loadFromServer(this.state.pageSize);
-  }
-
-  render() {
-    return (
-        <Container className="border-left border-right h-100 p-5">
-          <h1 className="mb-4">Employee Management App</h1>
-          <CreateDialog attributes={this.state.attributes}
-                        onCreate={this.onCreate}/>
-          <EmployeeList employees={this.state.employees}
-                        links={this.state.links}
-                        pageSize={this.state.pageSize}
-                        onNavigate={this.onNavigate}
-                        onDelete={this.onDelete}
-                        updatePageSize={this.updatePageSize}
-          />
-        </Container>);
   }
 
   loadFromServer(pageSize) {
@@ -56,14 +42,24 @@ class App extends React.Component {
         headers: {'Accept': 'application/schema+json'}
       }).then(schema => {
         this.schema = schema.entity;
+        this.links = employeeCollection.entity._links;
         return employeeCollection;
       });
-    }).done(employeeCollection => {
+    }).then(employeeCollection => {
+      return employeeCollection.entity._embedded.employees.map(employee =>
+          client({
+            method: 'GET',
+            path: employee._links.self.href
+          })
+      );
+    }).then(employeePromises => {
+      return when.all(employeePromises);
+    }).done(employees => {
       this.setState({
-        employees: employeeCollection.entity._embedded.employees,
+        employees: employees,
         attributes: Object.keys(this.schema.properties),
         pageSize: pageSize,
-        links: employeeCollection.entity._links
+        links: this.links
       });
     });
   }
@@ -89,30 +85,154 @@ class App extends React.Component {
   }
 
   onNavigate(navUri) {
-    console.log(navUri);
-    client({method: 'GET', path: navUri}).done(employeeCollection => {
+    client({
+      method: 'GET',
+      path: navUri
+    }).then(employeeCollection => {
+      this.links = employeeCollection.entity._links;
+
+      return employeeCollection.entity._embedded.employees.map(employee =>
+          client({
+            method: 'GET',
+            path: employee._links.self.href
+          })
+      );
+    }).then(employeePromises => {
+      return when.all(employeePromises);
+    }).done(employees => {
       this.setState({
-        employees: employeeCollection.entity._embedded.employees,
-        attributes: this.state.attributes,
+        employees: employees,
+        attributes: Object.keys(this.schema.properties),
         pageSize: this.state.pageSize,
-        links: employeeCollection.entity._links
+        links: this.links
       });
     });
   }
 
   onDelete(employee) {
-    client({method:"DELETE", path: employee._links.self.href}).done(
+    client({method: "DELETE", path: employee.entity._links.self.href}).done(
         response => this.loadFromServer(this.state.pageSize)
     )
   }
 
+  onUpdate(employee, updatedEmployee) {
+    client({
+      method: "PUT",
+      path: employee.entity._links.self.href,
+      entity: updatedEmployee,
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': employee.headers.Etag
+      }
+    }).done(
+        response => {
+          this.loadFromServer(this.state.pageSize)
+        },
+        response => {
+          if (response.status.code === 412) {
+            alert(
+                `DENIED: Unable to update ${employee.entity._links.self.href} .\nYour copy is stale.`)
+          }
+        }
+    )
+  }
+
   updatePageSize(pageSize) {
-    if (pageSize !== this.state.pageSize){
+    if (pageSize !== this.state.pageSize) {
       this.loadFromServer(pageSize);
     }
   }
 
+  render() {
+    return (
+        <Container className="border-left border-right h-100 p-5">
+          <h1 className="mb-4">Employee Management App</h1>
+          <CreateDialog attributes={this.state.attributes}
+                        onCreate={this.onCreate}/>
+          <EmployeeList employees={this.state.employees}
+                        links={this.state.links}
+                        pageSize={this.state.pageSize}
+                        onNavigate={this.onNavigate}
+                        onDelete={this.onDelete}
+                        updatePageSize={this.updatePageSize}
+                        attributes={this.state.attributes}
+                        onUpdate={this.onUpdate}
+          />
+        </Container>);
+  }
 }
+
+class UpdateDialog extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      show: false
+    }
+    this.attributeRefs = {};
+    this.handleSubmit = this.handleSubmit.bind(this);
+    this.toggle = this.toggle.bind(this);
+  }
+
+  newAttributeRef(attribute) {
+    const result = React.createRef();
+    this.attributeRefs[attribute] = result;
+    return result;
+  }
+
+  toggle() {
+    this.setState({
+      show: !this.state.show
+    })
+  }
+
+  handleSubmit(e) {
+    e.preventDefault();
+    const updatedEmployee = {};
+    this.props.attributes.forEach(attribute => {
+      updatedEmployee[attribute] = this.attributeRefs[attribute].current.value.trim();
+    });
+    this.props.onUpdate(this.props.employee, updatedEmployee);
+    this.toggle();
+  }
+
+  render() {
+    const inputs = this.props.attributes.map(attribute =>
+        <p key={this.props.employee.entity[attribute]}>
+          <input type="text" placeholder={attribute}
+                 defaultValue={this.props.employee.entity[attribute]}
+                 ref={this.newAttributeRef(attribute)}
+                 className="form-control"/>
+        </p>
+    );
+
+    const dialogId = "updateEmployee-"
+        + this.props.employee.entity._links.self.href;
+
+    return (
+        <>
+          <div key={this.props.employee.entity._links.self.href}>
+            <Modal id={dialogId} show={this.state.show} onHide={this.toggle}>
+              <Modal.Header closeButton>
+                {/*<a href="#" title="Close" className="close">X</a>*/}
+                <Modal.Title>
+                  <h2>Update an employee</h2>
+                </Modal.Title>
+              </Modal.Header>
+              <Modal.Body>
+                <form className="form-group">
+                  {inputs}
+                  <Button onClick={this.handleSubmit}>Update</Button>
+                </form>
+              </Modal.Body>
+            </Modal>
+          </div>
+          <Button variant="outline-primary mx-2"
+                  onClick={this.toggle}>Update</Button>
+        </>
+    )
+  }
+};
 
 class CreateDialog extends React.Component {
 
@@ -133,8 +253,8 @@ class CreateDialog extends React.Component {
       newEmployee[attribute] = this.attributeRefs[attribute].current.value.trim()
     })
     this.props.onCreate(newEmployee);
-    this._clearInputElements();
-    this._closeDialog();
+    this.clearInputElements();
+    this.toggle();
   }
 
   toggle() {
@@ -191,13 +311,9 @@ class CreateDialog extends React.Component {
     return result;
   }
 
-  _clearInputElements() {
+  clearInputElements() {
     this.props.attributes.forEach(
         attribute => this.attributeRefs[attribute].current.value = '')
-  }
-
-  _closeDialog() {
-    window.location = "#";
   }
 }
 
@@ -207,47 +323,56 @@ class EmployeeList extends React.Component {
     this.pageSizeRef = React.createRef();
     this.handlePageSizeChange = this.handlePageSizeChange.bind(this);
   }
-  handlePageSizeChange(e){
+
+  handlePageSizeChange(e) {
     e.preventDefault();
     const pageSize = this.pageSizeRef.current.value.trim();
-    if( /^[0-9]$/.test(pageSize)){
+    if (/^[0-9]$/.test(pageSize)) {
       this.props.updatePageSize(pageSize);
-    }
-    else {
-      this.pageSizeRef.current.value = pageSize.substring(0, pageSize.length -1);
+    } else {
+      this.pageSizeRef.current.value = pageSize.substring(0,
+          pageSize.length - 1);
     }
   }
 
-
   render() {
     const employeeComponents = this.props.employees.map(
-        employee => <Employee key={employee._links.self.href}
+        employee => <Employee key={employee.entity._links.self.href}
                               employee={employee}
-                              onDelete={this.props.onDelete}/>
+                              onDelete={this.props.onDelete}
+                              attributes={this.props.attributes}
+                              onUpdate={this.props.onUpdate}/>
     );
     const navButtons = [];
     for (let navLink of ["first", "prev", "next", "last"]) {
       if (navLink in this.props.links) {
         navButtons.push(
-            <Button className="border" key={navLink} onClick={(e) => this.handleNav(e,
-                navLink)}>
-              { function(link){
-                switch(link) {
-                  case "prev" : return "<";
-                  case "next" : return ">";
-                  case "first" : return "<<";
-                  case "last" : return ">>";
+            <Button className="border" key={navLink}
+                    onClick={(e) => this.handleNav(e,
+                        navLink)}>
+              {function (link) {
+                switch (link) {
+                  case "prev" :
+                    return "<";
+                  case "next" :
+                    return ">";
+                  case "first" :
+                    return "<<";
+                  case "last" :
+                    return ">>";
                 }
-            }(navLink)}
+              }(navLink)}
             </Button>)
       }
     }
     return (
         <div className="mt-4">
           <h4>List of employees</h4>
-          <form >
+          <form>
             <label htmlFor="pageSize" className="mr-2">Page Size: </label>
-            <input name="pageSize" defaultValue={this.props.pageSize} type="text" ref={this.pageSizeRef} onInput={this.handlePageSizeChange}/>
+            <input name="pageSize" defaultValue={this.props.pageSize}
+                   type="text" ref={this.pageSizeRef}
+                   onInput={this.handlePageSizeChange}/>
           </form>
           <table className="table my-2">
             <tbody>
@@ -276,16 +401,26 @@ class Employee extends React.Component {
     super(props);
     this.handleDelete = this.handleDelete.bind(this);
   }
+
   handleDelete() {
     this.props.onDelete(this.props.employee);
   }
+
   render() {
     return (
         <tr>
-          <td>{this.props.employee.firstName}</td>
-          <td>{this.props.employee.lastName}</td>
-          <td>{this.props.employee.description}</td>
-          <td><Button variant="danger" onClick={this.handleDelete}>Delete</Button> </td>
+          <td>{this.props.employee.entity.firstName}</td>
+          <td>{this.props.employee.entity.lastName}</td>
+          <td>{this.props.employee.entity.description}</td>
+          <td>
+            {/*<ButtonGroup className="mx-2">*/}
+            <UpdateDialog employee={this.props.employee}
+                          attributes={this.props.attributes}
+                          onUpdate={this.props.onUpdate}/>
+            <Button variant="outline-danger mx-2"
+                    onClick={this.handleDelete}>Delete</Button>
+            {/*</ButtonGroup>*/}
+          </td>
         </tr>
     )
   }
