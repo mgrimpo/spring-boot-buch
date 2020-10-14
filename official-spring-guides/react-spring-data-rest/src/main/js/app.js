@@ -30,8 +30,8 @@ class App extends React.Component {
 
   render() {
     return (
-        <Container>
-          <h1>Employee Management App</h1>
+        <Container className="border-left border-right h-100 p-5">
+          <h1 className="mb-4">Employee Management App</h1>
           <CreateDialog attributes={this.state.attributes}
                         onCreate={this.onCreate}/>
           <EmployeeList employees={this.state.employees}/>
@@ -176,17 +176,19 @@ class EmployeeList extends React.Component {
                               employee={employee}/>
     );
     return (
-        <table className="table my-2">
-          <tbody>
-          <tr>
-            <th>First Name</th>
-            <th>Last Name</th>
-            <th>Description</th>
-          </tr>
-          {employeeComponents}
-          </tbody>
-        </table>
-
+        <div className="mt-4">
+          <h4>List of employees</h4>
+          <table className="table my-2">
+            <tbody>
+            <tr>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Description</th>
+            </tr>
+            {employeeComponents}
+            </tbody>
+          </table>
+        </div>
     );
   }
 }
