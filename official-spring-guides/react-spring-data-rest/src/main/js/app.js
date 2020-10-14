@@ -20,8 +20,8 @@ class App extends React.Component {
       attributes: [],
       links: []
     };
-
     this.onCreate = this.onCreate.bind(this);
+    this.onNavigate = this.onNavigate.bind(this)
   }
 
   componentDidMount() {
@@ -34,7 +34,9 @@ class App extends React.Component {
           <h1 className="mb-4">Employee Management App</h1>
           <CreateDialog attributes={this.state.attributes}
                         onCreate={this.onCreate}/>
-          <EmployeeList employees={this.state.employees}/>
+          <EmployeeList employees={this.state.employees}
+                        links={this.state.links}
+                        onNavigate={this.onNavigate}/>
         </Container>);
   }
 
@@ -77,6 +79,18 @@ class App extends React.Component {
       } else {
         this.onNavigate(response.entity._links.self.href);
       }
+    });
+  }
+
+  onNavigate(navUri) {
+    console.log(navUri);
+    client({method: 'GET', path: navUri}).done(employeeCollection => {
+      this.setState({
+        employees: employeeCollection.entity._embedded.employees,
+        attributes: this.state.attributes,
+        pageSize: this.state.pageSize,
+        links: employeeCollection.entity._links
+      });
     });
   }
 
@@ -170,11 +184,32 @@ class CreateDialog extends React.Component {
 }
 
 class EmployeeList extends React.Component {
+  constructor(props) {
+    super(props);
+  }
+
   render() {
     const employeeComponents = this.props.employees.map(
         employee => <Employee key={employee._links.self.href}
                               employee={employee}/>
     );
+    const navButtons = [];
+    for (let navLink of ["first", "prev", "next", "last"]) {
+      if (navLink in this.props.links) {
+        navButtons.push(
+            <Button className="border" key={navLink} onClick={(e) => this.handleNav(e,
+                navLink)}>
+              { function(link){
+                switch(link) {
+                  case "prev" : return "<";
+                  case "next" : return ">";
+                  case "first" : return "<<";
+                  case "last" : return ">>";
+                }
+            }(navLink)}
+            </Button>)
+      }
+    }
     return (
         <div className="mt-4">
           <h4>List of employees</h4>
@@ -188,8 +223,14 @@ class EmployeeList extends React.Component {
             {employeeComponents}
             </tbody>
           </table>
+          <ButtonGroup>{navButtons}</ButtonGroup>
         </div>
     );
+  }
+
+  handleNav(e, navLink) {
+    e.preventDefault();
+    this.props.onNavigate(this.props.links[navLink].href);
   }
 }
 
