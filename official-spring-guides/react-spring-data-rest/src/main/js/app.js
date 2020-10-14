@@ -8,6 +8,7 @@ const {Modal} = require('react-bootstrap')
 const {Button} = require('react-bootstrap')
 const {Container} = require('react-bootstrap')
 const when = require('when')
+const stompClient = require('./websocket-listener')
 
 const API_ROOT = "/api";
 
@@ -17,6 +18,7 @@ class App extends React.Component {
     super(props);
     this.state = {
       employees: [],
+      page: 1,
       pageSize: 2,
       attributes: [],
       links: []
@@ -26,10 +28,62 @@ class App extends React.Component {
     this.onDelete = this.onDelete.bind(this);
     this.updatePageSize = this.updatePageSize.bind(this);
     this.onUpdate = this.onUpdate.bind(this);
+    this.refreshCurrentPage = this.refreshCurrentPage.bind(this);
+    this.refreshAndGoToLastPage = this.refreshAndGoToLastPage.bind(this);
   }
 
   componentDidMount() {
     this.loadFromServer(this.state.pageSize);
+    stompClient.register([
+      {route: '/topic/newEmployee', callback: this.refreshAndGoToLastPage},
+      {route: '/topic/updateEmployee', callback: this.refreshCurrentPage},
+      {route: '/topic/deleteEmployee', callback: this.refreshCurrentPage}
+    ]);
+  }
+
+  refreshAndGoToLastPage(message) {
+    follow(client,
+        API_ROOT,
+        [{rel: 'employees', params: {size: this.state.pageSize}}]
+    ).then(
+        response => {
+          if (response.entity._links.last !== undefined) {
+            this.onNavigate(response.entity._links.last.href);
+          } else {
+            this.onNavigate(response.entity._links.self.href);
+          }
+
+        }
+    )
+  }
+
+  refreshCurrentPage(message) {
+    follow(client, API_ROOT, {
+      rel: 'employees', params: {
+        page: this.state.page.number,
+        size: this.state.pageSize
+      }
+    }).then(
+        employeeCollection => {
+          this.links = employeeCollection.entity._links;
+          this.page = employeeCollection.entity.page;
+
+          return employeeCollection.map(
+              employee => client(
+                  {method: 'GET', path: employee._links.self.href})
+          )
+        }
+    ).then(employeePromises => {
+      when.all(employeePromises)
+    }).then(employees => {
+          this.setState({
+            page : this.page,
+            links: this.links,
+            employees : employees,
+            attributes : Object.keys(this.schema.properties)
+          })
+        }
+    )
   }
 
   loadFromServer(pageSize) {
@@ -46,6 +100,7 @@ class App extends React.Component {
         return employeeCollection;
       });
     }).then(employeeCollection => {
+      this.page = employeeCollection.entity.page;
       return employeeCollection.entity._embedded.employees.map(employee =>
           client({
             method: 'GET',
@@ -58,6 +113,7 @@ class App extends React.Component {
       this.setState({
         employees: employees,
         attributes: Object.keys(this.schema.properties),
+        page: this.page,
         pageSize: pageSize,
         links: this.links
       });
