@@ -21,7 +21,8 @@ class App extends React.Component {
       links: []
     };
     this.onCreate = this.onCreate.bind(this);
-    this.onNavigate = this.onNavigate.bind(this)
+    this.onNavigate = this.onNavigate.bind(this);
+    this.onDelete = this.onDelete.bind(this);
   }
 
   componentDidMount() {
@@ -36,7 +37,8 @@ class App extends React.Component {
                         onCreate={this.onCreate}/>
           <EmployeeList employees={this.state.employees}
                         links={this.state.links}
-                        onNavigate={this.onNavigate}/>
+                        onNavigate={this.onNavigate}
+                        onDelete={this.onDelete}/>
         </Container>);
   }
 
@@ -92,6 +94,12 @@ class App extends React.Component {
         links: employeeCollection.entity._links
       });
     });
+  }
+
+  onDelete(employee) {
+    client({method:"DELETE", path: employee._links.self.href}).done(
+        response => this.loadFromServer(this.state.pageSize)
+    )
   }
 
 }
@@ -191,7 +199,8 @@ class EmployeeList extends React.Component {
   render() {
     const employeeComponents = this.props.employees.map(
         employee => <Employee key={employee._links.self.href}
-                              employee={employee}/>
+                              employee={employee}
+                              onDelete={this.props.onDelete}/>
     );
     const navButtons = [];
     for (let navLink of ["first", "prev", "next", "last"]) {
@@ -219,6 +228,7 @@ class EmployeeList extends React.Component {
               <th>First Name</th>
               <th>Last Name</th>
               <th>Description</th>
+              <th></th>
             </tr>
             {employeeComponents}
             </tbody>
@@ -235,12 +245,20 @@ class EmployeeList extends React.Component {
 }
 
 class Employee extends React.Component {
+  constructor(props) {
+    super(props);
+    this.handleDelete = this.handleDelete.bind(this);
+  }
+  handleDelete() {
+    this.props.onDelete(this.props.employee);
+  }
   render() {
     return (
         <tr>
           <td>{this.props.employee.firstName}</td>
           <td>{this.props.employee.lastName}</td>
           <td>{this.props.employee.description}</td>
+          <td><Button variant="danger" onClick={this.handleDelete}>Delete</Button> </td>
         </tr>
     )
   }
