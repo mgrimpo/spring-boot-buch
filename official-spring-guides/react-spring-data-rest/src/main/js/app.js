@@ -1,4 +1,4 @@
-import {ButtonGroup} from "react-bootstrap";
+import {ButtonGroup, Navbar} from "react-bootstrap";
 
 const React = require('react')
 const ReactDOM = require('react-dom')
@@ -216,7 +216,9 @@ class App extends React.Component {
 
   render() {
     return (
-        <Container className="border-left border-right h-100 p-5">
+        <Container className="border-left border-right h-100 p-0">
+          <EmployeeNavbar/>
+          <Container className="p-5">
           <h1 className="mb-4">Employee Management App</h1>
           <CreateDialog attributes={this.state.attributes}
                         onCreate={this.onCreate}/>
@@ -229,7 +231,26 @@ class App extends React.Component {
                         attributes={this.state.attributes}
                         onUpdate={this.onUpdate}
           />
-        </Container>);
+          </Container>
+        </Container>
+    );
+  }
+}
+
+class EmployeeNavbar extends React.Component {
+
+  constructor(props) {
+    super(props);
+  }
+
+  render() {
+    return (
+        <Navbar className="navbar-dark bg-primary">
+          <a className="navbar-brand" href="#">Employee Managr</a>
+          <span className="mr-auto"></span>
+          <span className="navbar-text text-light">Currently logged in as: {authenticatedManager}</span>
+        </Navbar>
+    )
   }
 }
 
@@ -252,6 +273,11 @@ class UpdateDialog extends React.Component {
   }
 
   toggle() {
+    const employeeManager = this.props.employee.entity.manager.name;
+    if (employeeManager !== authenticatedManager){
+      alert(`You cannot edit this employee. They are not managed by you (${authenticatedManager}), but by ${employeeManager}.`);
+      return;
+    }
     this.setState({
       show: !this.state.show
     })
@@ -478,7 +504,6 @@ class Employee extends React.Component {
   handleDelete() {
     this.props.onDelete(this.props.employee);
   }
-
 
   render() {
     return (

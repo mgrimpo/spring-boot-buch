@@ -7,6 +7,9 @@
   <style>
     html, body, #react {  height:100%;}
   </style>
+  <script th:inline="javascript">
+    const authenticatedManager = [[${#authentication.name}]]
+  </script>
 </head>
 <body>
 
