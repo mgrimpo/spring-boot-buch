@@ -8,14 +8,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 public interface EmployeeRepository extends PagingAndSortingRepository<Employee,Long> {
 
   @Override
-  @PreAuthorize("#employee?.manager == null or #employee?.manager?.name == authentication.name")
+  @PreAuthorize("#employee?.manager ==null or #employee?.manager?.name == authentication?.name")
   Employee save(@Param("employee") Employee employee);
 
   @Override
-  @PreAuthorize("@employeeRepository.findById(#id)?.manager?.name == authentication.name")
+  @PreAuthorize("@employeeRepository.findById(#id)?.manager?.name == authentication?.name")
   void deleteById(@Param("id") Long id);
 
   @Override
-  @PreAuthorize("employee?.manager?.name == authentication.name")
+  @PreAuthorize("#employee?.manager?.name == authentication?.name")
   void delete(@Param("employee") Employee employee);
 }

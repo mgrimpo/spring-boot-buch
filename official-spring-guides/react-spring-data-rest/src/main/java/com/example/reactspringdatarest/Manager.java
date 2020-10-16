@@ -24,6 +24,15 @@ public class Manager {
   private String name;
 
   @Override
+  public String toString() {
+    return "Manager{" +
+        "id=" + id +
+        ", name='" + name + '\'' +
+        ", roles=" + Arrays.toString(roles) +
+        '}';
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) {
       return true;
