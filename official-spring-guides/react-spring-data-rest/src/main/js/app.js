@@ -96,6 +96,15 @@ class App extends React.Component {
         path: employeeCollection.entity._links.profile.href,
         headers: {'Accept': 'application/schema+json'}
       }).then(schema => {
+        Object.keys(schema.entity.properties).forEach(function (property) {
+          if (schema.entity.properties[property].hasOwnProperty('format') &&
+              schema.entity.properties[property].format === 'uri') {
+            delete schema.entity.properties[property];
+          } else if (schema.entity.properties[property].hasOwnProperty(
+              '$ref')) {
+            delete schema.entity.properties[property];
+          }
+        });
         this.schema = schema.entity;
         this.links = employeeCollection.entity._links;
         return employeeCollection;
@@ -160,10 +169,20 @@ class App extends React.Component {
   }
 
   onDelete(employee) {
-    client({method: "DELETE", path: employee.entity._links.self.href})
+    console.log(employee);
+    client({method: "DELETE", path: employee.entity._links.self.href}).catch(
+        response => {
+          console.log(response);
+          if (response.status.code === 403) {
+            alert(
+                `DENIED: Unable to delete ${employee.entity._links.self.href} .\nYou are not authorized to delete this employee.`
+            )
+          }
+        })
   }
 
   onUpdate(employee, updatedEmployee) {
+    updatedEmployee.manager = employee.entity.manager;
     client({
       method: "PUT",
       path: employee.entity._links.self.href,
@@ -172,14 +191,21 @@ class App extends React.Component {
         'Content-Type': 'application/json',
         'If-Match': employee.headers.Etag
       }
-    }).done(
+    }).then(
         response => {
           if (response.status.code === 412) {
             alert(
-                `DENIED: Unable to update ${employee.entity._links.self.href} .\nYour copy is stale.`)
+                `DENIED: Unable to update ${employee.entity._links.self.href} .\nYour copy is stale.`
+            )
           }
         }
-    )
+    ).catch(response => {
+      if (response.status.code === 403) {
+        alert(
+            `DENIED: Unable to update ${employee.entity._links.self.href} .\nYour are not authorized to update this employee.`
+        )
+      }
+    })
   }
 
   updatePageSize(pageSize) {
@@ -257,7 +283,8 @@ class UpdateDialog extends React.Component {
     return (
         <>
           <div key={this.props.employee.entity._links.self.href}>
-            <Modal id={dialogId} show={this.state.show} onHide={this.toggle}>
+            <Modal id={dialogId} show={this.state.show}
+                   onHide={this.toggle}>
               <Modal.Header closeButton>
                 {/*<a href="#" title="Close" className="close">X</a>*/}
                 <Modal.Title>
@@ -425,6 +452,7 @@ class EmployeeList extends React.Component {
               <th>First Name</th>
               <th>Last Name</th>
               <th>Description</th>
+              <th>Manager</th>
               <th></th>
             </tr>
             {employeeComponents}
@@ -451,12 +479,14 @@ class Employee extends React.Component {
     this.props.onDelete(this.props.employee);
   }
 
+
   render() {
     return (
         <tr>
           <td>{this.props.employee.entity.firstName}</td>
           <td>{this.props.employee.entity.lastName}</td>
           <td>{this.props.employee.entity.description}</td>
+          <td>{this.props.employee.entity.manager.name}</td>
           <td>
             {/*<ButtonGroup className="mx-2">*/}
             <UpdateDialog employee={this.props.employee}
