@@ -1,12 +1,12 @@
 <!--The content below is only a placeholder and can be replaced.-->
-<div style="text-align: center" class="container">
-  <h1>
-    Welcome to {{ title }}!
-  </h1>
-  <div>
-    <p>Id: <span>{{greeting.id}}</span></p>
-    <p>Message: <span>{{greeting.content}}</span></p>
-  </div>
+<nav class="navbar navbar-light navbar-expand">
+  <ul class="navbar-nav mr-auto">
+    <li class="nav-item"><a class="nav-link" routerLinkActive="active" routerLink="/home">Home</a></li>
+    <li class="nav-item"><a class="nav-link" routerLinkActive="active" routerLink="/login">Login</a></li>
+    <li class="nav-item"><a class="nav-link" (click)="logout()">Logout</a></li>
+  </ul>
+</nav>
+<div class="container">
+  <router-outlet></router-outlet>
 </div>
 
-<router-outlet></router-outlet>
