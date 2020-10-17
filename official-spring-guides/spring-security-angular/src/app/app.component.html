@@ -1,12 +1,12 @@
-<!--The content below is only a placeholder and can be replaced.-->
-<nav class="navbar navbar-light navbar-expand">
+<nav class="navbar navbar-dark bg-primary navbar-expand">
+  <div class="container">
   <ul class="navbar-nav mr-auto">
     <li class="nav-item"><a class="nav-link" routerLinkActive="active" routerLink="/home">Home</a></li>
     <li class="nav-item"><a class="nav-link" routerLinkActive="active" routerLink="/login">Login</a></li>
     <li class="nav-item"><a class="nav-link" (click)="logout()">Logout</a></li>
-  </ul>
+  </ul></div>
 </nav>
-<div class="container">
+<div class="container px-2 py-5">
   <router-outlet></router-outlet>
 </div>
 
