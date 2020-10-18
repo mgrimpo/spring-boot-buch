@@ -11,9 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 @SpringBootApplication
 public class SpringSecurityAngularApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SpringSecurityAngularApplication.class, args);
-	}
-
-
+  public static void main(String[] args) {
+    SpringApplication.run(SpringSecurityAngularApplication.class, args);
+  }
 }
