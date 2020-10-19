@@ -2,6 +2,3 @@ spring:
   security:
     user:
       password: changeMe
-
-  session:
-    store-type: redis
