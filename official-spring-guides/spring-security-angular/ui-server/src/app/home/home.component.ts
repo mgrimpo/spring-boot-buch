@@ -13,7 +13,7 @@ export class HomeComponent {
   greeting = {}
 
   constructor(private app: AppService, private http: HttpClient) {
-    http.get("http://localhost:9000").subscribe(
+    http.get("resource").subscribe(
       response => {
         this.greeting = response;
       }
