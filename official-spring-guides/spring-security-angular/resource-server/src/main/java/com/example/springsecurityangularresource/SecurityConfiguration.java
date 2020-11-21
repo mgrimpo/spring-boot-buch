@@ -6,8 +6,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.stereotype.Component;
 
-@Configuration
-@Component
+//@Configuration
 public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
   @Override
